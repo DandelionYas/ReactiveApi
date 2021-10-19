@@ -67,12 +67,27 @@ public class FluxAndMonoTransformTest {
         return Arrays.asList(s, "newValue");
     }
 
-
     @Test
     public void transformUsingFlatMap_usingParallel() {
         Flux<String> stringFlux = Flux.fromIterable(Arrays.asList("A", "B", "C", "D", "E", "F"))
                 .window(2) // Flux<Flux<String>> -> (A,B), (B, C), (D, F)
                 .flatMap(s -> s.map(this::convertToList).subscribeOn(Schedulers.parallel())) // Flux<List<String>>
+                .flatMap(Flux::fromIterable)
+                .log();
+
+        StepVerifier.create(stringFlux)
+                .expectNextCount(12)
+                .verifyComplete();
+    }
+
+    @Test
+    public void transformUsingFlatMap_usingParallel_maintain_order() {
+        Flux<String> stringFlux = Flux.fromIterable(Arrays.asList("A", "B", "C", "D", "E", "F"))
+                .window(2) // Flux<Flux<String>> -> (A,B), (B, C), (D, F)
+                //concatMap is like flatMap but maintain the order
+//                .concatMap(s -> s.map(this::convertToList).subscribeOn(Schedulers.parallel())) // Flux<List<String>>
+                //flatMapSequential is faster than concatMap and is very handy for replacing flatMap for maintaining the order
+                .flatMapSequential(s -> s.map(this::convertToList).subscribeOn(Schedulers.parallel())) // Flux<List<String>>
                 .flatMap(Flux::fromIterable)
                 .log();
 
